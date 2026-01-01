@@ -6,7 +6,7 @@ use std::sync::{
     Arc, Mutex,
 };
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::URL_SAFE;
 use base64::Engine as _;
@@ -65,7 +65,7 @@ enum Mode {
     },
     /// Pure brute-force with a charset and min/max length
     Bruteforce {
-        /// Charset (supports ?d, ?l, ?u, ?s, ?a or literal chars)
+        /// Charset (supports ?d, ?l, ?u, ?m, ?h, ?s, ?a or literal chars)
         charset: String,
         /// Minimum length
         min: usize,
@@ -113,8 +113,20 @@ fn write_state(state_path: &Option<PathBuf>, tested: u64) {
     }
 }
 
-fn worker(token: String, found: Arc<AtomicBool>, rx: Receiver<String>, tested: Arc<AtomicU64>, result: Arc<Mutex<Option<Found>>>) {
-    while let Ok(passphrase) = rx.recv() {
+fn worker(
+    token: String,
+    found: Arc<AtomicBool>,
+    stop: Arc<AtomicBool>,
+    rx: Receiver<String>,
+    tested: Arc<AtomicU64>,
+    result: Arc<Mutex<Option<Found>>>,
+) {
+    while !stop.load(Ordering::Relaxed) {
+        let passphrase = match rx.recv_timeout(Duration::from_millis(200)) {
+            Ok(p) => p,
+            Err(crossbeam_channel::RecvTimeoutError::Timeout) => continue,
+            Err(_) => break,
+        };
         if found.load(Ordering::Relaxed) {
             break;
         }
@@ -400,8 +412,13 @@ fn main() -> io::Result<()> {
 
     ctrlc::set_handler({
         let stop = Arc::clone(&stop);
+        let tested = Arc::clone(&tested);
+        let state = args.state.clone();
         move || {
             stop.store(true, Ordering::Relaxed);
+            let pos = tested.load(Ordering::Relaxed);
+            write_state(&state, pos);
+            eprintln!("stopping... saved progress at {}", pos);
         }
     })
     .expect("failed to set Ctrl-C handler");
@@ -416,8 +433,9 @@ fn main() -> io::Result<()> {
         let token = token.clone();
         let found = Arc::clone(&found);
         let tested = Arc::clone(&tested);
+        let stop = Arc::clone(&stop);
         let result = Arc::clone(&result);
-        handles.push(thread::spawn(move || worker(token, found, rx, tested, result)));
+        handles.push(thread::spawn(move || worker(token, found, stop, rx, tested, result)));
     }
 
     let total = match &args.mode {
@@ -457,7 +475,7 @@ fn main() -> io::Result<()> {
     let pb = ProgressBar::new(pb_len);
     pb.set_style(
         ProgressStyle::with_template(
-            "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({percent}%) {rate}/s {msg}",
+            "[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} ({percent}%) {msg}",
         )
         .unwrap()
         .progress_chars("##-"),
@@ -470,13 +488,24 @@ fn main() -> io::Result<()> {
         let pb = pb.clone();
         let state = args.state.clone();
         thread::spawn(move || {
+            let mut last_rate_instant = Instant::now();
+            let mut last_rate_pos = tested.load(Ordering::Relaxed);
+            let mut rate_msg = "rate=0/s".to_string();
             while !stop.load(Ordering::Relaxed) {
                 let pos = tested.load(Ordering::Relaxed);
+                if last_rate_instant.elapsed() >= Duration::from_secs(10) {
+                    let delta = pos.saturating_sub(last_rate_pos);
+                    let secs = last_rate_instant.elapsed().as_secs_f64().max(1.0);
+                    let rate = (delta as f64) / secs;
+                    rate_msg = format!("rate={:.2}/s", rate);
+                    last_rate_instant = Instant::now();
+                    last_rate_pos = pos;
+                }
                 pb.set_position(pos);
                 if paused.load(Ordering::Relaxed) {
-                    pb.set_message("paused (press 'p' to resume)");
+                    pb.set_message(format!("paused (press 'p' to resume) {}", rate_msg));
                 } else {
-                    pb.set_message("running");
+                    pb.set_message(format!("running {}", rate_msg));
                 }
                 write_state(&state, pos);
                 thread::sleep(Duration::from_millis(250));

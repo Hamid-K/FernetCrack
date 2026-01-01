@@ -11,9 +11,9 @@ cargo build --release
 
 ## Usage
 ```
-./target/release/fernet_cracker --token <TOKEN_OR_FILE> wordlist <WORDLIST>
-./target/release/fernet_cracker --token <TOKEN_OR_FILE> mask "?d?d?d?d"
-./target/release/fernet_cracker --token <TOKEN_OR_FILE> bruteforce "?h" 6 8
+./target/release/fernet_bruteforce --token <TOKEN_OR_FILE> wordlist <WORDLIST>
+./target/release/fernet_bruteforce --token <TOKEN_OR_FILE> mask "?d?d?d?d"
+./target/release/fernet_bruteforce --token <TOKEN_OR_FILE> bruteforce "?h" 6 8
 ```
 
 ### Common Options
@@ -42,13 +42,13 @@ Hashcat-style sets:
 Examples:
 ```
 # 4-digit PIN
-./target/release/fernet_cracker --token token.txt mask "?d?d?d?d"
+./target/release/fernet_bruteforce --token token.txt mask "?d?d?d?d"
 
 # 6 lowercase letters
-./target/release/fernet_cracker --token token.txt mask "?l?l?l?l?l?l"
+./target/release/fernet_bruteforce --token token.txt mask "?l?l?l?l?l?l"
 
 # 8 alnum brute-force
-./target/release/fernet_cracker --token token.txt bruteforce "?h" 8 8
+./target/release/fernet_bruteforce --token token.txt bruteforce "?h" 8 8
 ```
 
 ## Extracting Fernet Tokens
@@ -98,5 +98,5 @@ python3 scripts/extract_fernet_token.py sample.bin --list --index 2 -o token2.tx
 
 Then crack:
 ```
-./target/release/fernet_cracker --token fernet_token.txt wordlist /path/to/wordlist.txt
+./target/release/fernet_bruteforce --token fernet_token.txt wordlist /path/to/wordlist.txt
 ```
