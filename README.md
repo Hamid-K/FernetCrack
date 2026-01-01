@@ -100,3 +100,6 @@ Then crack:
 ```
 ./target/release/fernet_bruteforce --token fernet_token.txt wordlist /path/to/wordlist.txt
 ```
+
+## YARA Rule (Fernet-like tokens)
+A high-signal YARA rule is included at `yara/fernet_token_like.yar`. It detects Fernet-shaped tokens using the canonical `gAAAAA` prefix and URL-safe base64 alphabet.
