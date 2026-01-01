@@ -9,3 +9,15 @@ rule fernet_token_like
   condition:
     $fernet
 }
+
+rule fernet_token_like_gapped
+{
+  meta:
+    description = "Detect Fernet-like tokens allowing null bytes between characters"
+    author = "Hamid Kashfi (X: @hkashfi), Codex"
+    confidence = "noisier; for embedded/gapped tokens"
+  strings:
+    $gapped = /g\x00*A\x00*A\x00*A\x00*A\x00*A\x00A\x00*[0-9A-Za-z_-](\x00*[0-9A-Za-z_-]){74,}/
+  condition:
+    $gapped
+}

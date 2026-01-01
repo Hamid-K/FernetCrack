@@ -102,4 +102,11 @@ Then crack:
 ```
 
 ## YARA Rule (Fernet-like tokens)
-A high-signal YARA rule is included at `yara/fernet_token_like.yar`. It detects Fernet-shaped tokens using the canonical `gAAAAA` prefix and URL-safe base64 alphabet.
+Rules are included at `yara/fernet_token_like.yar`:
+- `fernet_token_like`: high-signal rule for contiguous tokens
+- `fernet_token_like_gapped`: allows null bytes between characters (noisier, but can catch embedded trailer formats)
+
+Scan recursively:
+```
+yara -r yara/fernet_token_like.yar .
+```
