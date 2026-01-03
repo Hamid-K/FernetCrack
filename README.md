@@ -1,5 +1,8 @@
 # fernet-cracker
 
+### This project is obsolete already. Use my HashCat [Fernet fork](https://github.com/Hamid-K/hashcat/tree/fernet) instead, which is a tiny bit faster. About 370 million times faster, to be specific. 
+
+
 Authors: Hamid Kashfi (X: @hkashfi), Codex
 
 Generic Fernet cracker with wordlist, mask, and bruteforce modes. Includes pause/resume, progress, and hashcat-style masks.
